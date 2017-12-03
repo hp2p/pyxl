@@ -131,58 +131,82 @@ if __name__ == "__main__":
     
         line_no += 1
     
-    f = open('2016_Finantial_statements.txt', 'rb')
+    f = open('2016_Finantial_statements_mod.txt', 'rb')
     lines = f.read().decode('euc-kr').splitlines()
     f.close()
 
-    f = open('2016_Income_statements.txt', 'rb')
+    f = open('2016_Income_statements_mod.txt', 'rb')
     lines += f.read().decode('cp949').splitlines()
     f.close()
 
     invalid_codes = {}
 
+    def get_number3(line):
+	ret = []
+	if 'USD' in line:
+	    rate = 1085
+	elif 'JPY' in line:
+	    rate = 10
+	elif 'CNY' in line:
+	    rate = 170
+	elif 'KRW' in line:
+	    rate = 1
+	else:
+	    print 'ERROR. no USD JPY CNY KRW'
+	    print
+	    print
+	    print
+
+	for w in reversed(line.split('\t')):
+	    w = w.replace(',', '')
+	    if w:
+	        if w.replace('-','').isdigit():
+		    ret.append( ( (rate * int(w)) + 50000000)/100000000 )
+		else:
+		    break
+        return ret
+	        
+
     for line in lines:
         ws = line.split('\t')
 	code = u'A' + ws[1][1:-1].encode('utf-8')
+	name = ws[2].encode('utf-8')
 
 	if code not in companies:
-	    if code not in invalid_codes:
-	        invalid_codes[code] = line
+    	    company = Company(code, name, start_year)
+    	    companies[code] = company
 	else:
 	    comp = companies[code]
+	    if comp.name_ != name:
+	        # print 'code = %s name = %s comp.name_ = %s' % (code, name, comp.name_)
+	        comp.name_ = name
 
-	    if (u'자산총계' in line) or (u'부채총계' in line) or (u'자본총계' in line) or (u'당기순이익' in line):
-	        ns = list(reversed([int(remove_comma_in_digits('"' + w + '"'))/100000000 for w in ws[-3:] if w]))
-		ns = ns[1:]
+	if (u'자산총계' in line) or \
+	   (u'부채총계' in line) or \
+	   (u'자본총계' in line) or \
+	   (u'\t당기순이익\t' in line) or \
+	   (u'\t매출액\t' in line) or \
+	   (u'\t영업이익\t' in line) or \
+	   (u'\t주당이익\t' in line):
 
-		if len(ns) != 2:
-		    print comp, ns
-		    break
+	        ns = get_number3(line)
+		if len(ns) == 3:
+		    ns = ns[1:]
 
 	        if (u'자산총계' in line):
 		    comp.asset_ += ns
-		if (u'부채총계' in line):
+		elif (u'부채총계' in line):
 		    comp.debt_ += ns
-		if (u'자본총계' in line):
+		elif (u'자본총계' in line):
 		    comp.equity_ += ns
-		if (u'당기순이익' in line):
+		elif (u'당기순이익' in line):
 		    comp.net_income_ += ns
-	        #print code, comp.name_, comp.asset_
-	    elif (u'매출액' in line) or (u'영업이익' in line) or (u'주당이익' in line):
-	        ns = list(reversed([int(remove_comma_in_digits('"' + w + '"'))/100000000 for w in ws[-5:] if w]))
-		ns = ns[1:]
-
-		if len(ns) != 2:
-		    print comp, ns
-		    break
-
-	        if (u'매출액' in line):
+	        elif (u'매출액' in line):
 		    comp.sales_ += ns
-		if (u'영업이익' in line):
+		elif (u'영업이익' in line):
 		    comp.opr_income_ += ns
-		if (u'주당이익' in line):
+		elif (u'주당이익' in line):
 		    comp.eps_ += ns
-	        #print code, comp.name_, comp.sales_
 
     #for c in invalid_codes:
     #    print invalid_codes[c]
@@ -193,8 +217,6 @@ if __name__ == "__main__":
         sss += str(comp) + ',\n\n'
     
     print sss[:-3], '\n\n]'
-    '''
-    '''
     
     
     { u'assets' : u'자산',
